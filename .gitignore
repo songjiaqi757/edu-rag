@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 .streamlit/secrets.toml
 qa_logs.db
+data/vector_store/index.faiss
+data/vector_store/chunks.pkl
