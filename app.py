@@ -5,15 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Iterable
 
-import faiss
-import fitz
-import jieba
-import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
-from sentence_transformers import SentenceTransformer
 
 from src.database import get_qa_logs, init_db, save_qa_log
 
@@ -57,6 +52,8 @@ class Chunk:
 
 
 def read_pdf(file) -> list[Chunk]:
+    import fitz
+
     chunks: list[Chunk] = []
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(file.getvalue())
@@ -119,11 +116,13 @@ def split_documents(documents: Iterable[Chunk]) -> list[Chunk]:
 
 
 @st.cache_resource(show_spinner=False)
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model():
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
-def embed_texts(model: SentenceTransformer, texts: list[str]) -> np.ndarray:
+def embed_texts(model, texts: list[str]) -> np.ndarray:
     embeddings = model.encode(
         texts,
         convert_to_numpy=True,
@@ -133,7 +132,9 @@ def embed_texts(model: SentenceTransformer, texts: list[str]) -> np.ndarray:
     return embeddings.astype("float32")
 
 
-def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
+def build_faiss_index(embeddings: np.ndarray):
+    import faiss
+
     index = faiss.IndexFlatIP(embeddings.shape[1])
     index.add(embeddings)
     return index
@@ -244,6 +245,8 @@ def get_recent_7_day_counts(logs: list[dict]) -> list[dict]:
 
 
 def extract_keywords(logs: list[dict], top_n: int = 15) -> list[tuple[str, int]]:
+    import jieba
+
     counter: Counter[str] = Counter()
     for log in logs:
         question = log.get("question", "")
@@ -258,6 +261,8 @@ def extract_keywords(logs: list[dict], top_n: int = 15) -> list[tuple[str, int]]
 
 
 def plot_recent_trend(trend_rows: list[dict]):
+    import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=(8, 3.6))
     dates = [row["date"] for row in trend_rows]
     counts = [row["count"] for row in trend_rows]
@@ -413,6 +418,8 @@ def render_learning_analytics_page() -> None:
     trend_rows = get_recent_7_day_counts(logs)
     fig = plot_recent_trend(trend_rows)
     st.pyplot(fig)
+    import matplotlib.pyplot as plt
+
     plt.close(fig)
 
     st.subheader("高频关键词")
