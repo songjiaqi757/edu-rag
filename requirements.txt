@@ -3,6 +3,7 @@ pymupdf>=1.24.7
 langchain>=0.2.11
 langchain-text-splitters>=0.2.2
 sentence-transformers>=3.0.1
+torchvision
 faiss-cpu>=1.8.0.post1
 openai>=1.40.0
 numpy>=1.26.4

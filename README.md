@@ -20,7 +20,9 @@
 - 学生端
   - 输入课程相关问题
   - 检索 Top-3 相关课程片段
-  - 调用 OpenAI API 生成回答
+  - 有 OpenAI API Key 时调用大模型生成回答
+  - 无 API Key 时自动进入演示模式，根据 Top-3 片段生成抽取式回答
+  - OpenAI API 调用失败时展示友好提示，并回退到演示模式回答
   - 当最高检索相似度低于 `0.35` 时，提示“课程资料中暂未找到相关内容”
   - 显示回答内容、参考资料来源和参考资料片段
   - 知识库为空时显示清晰提示
@@ -55,6 +57,27 @@
 
 完整依赖见 [requirements.txt](requirements.txt)。
 
+## 系统架构
+
+```mermaid
+flowchart LR
+    A[教师上传 PDF/TXT] --> B[文档解析]
+    B --> C[文本分块]
+    C --> D[Sentence-Transformers 向量化]
+    D --> E[FAISS 知识库]
+    E --> F[Top-3 检索]
+    G[学生问题] --> F
+    F --> H{是否命中阈值}
+    H -->|低于阈值| I[提示课程资料暂未找到相关内容]
+    H -->|命中| J{是否有 API Key}
+    J -->|有| K[OpenAI 生成回答]
+    J -->|无或调用失败| L[演示模式抽取式回答]
+    K --> M[回答与参考来源]
+    L --> M
+    M --> N[SQLite 问答日志]
+    N --> O[教师端学情分析]
+```
+
 ## 安装步骤
 
 ```bash
@@ -74,6 +97,8 @@ export OPENAI_API_KEY="你的 OpenAI API Key"
 
 方式二：启动应用后，在左侧教师端输入 API Key。
 
+如果没有 OpenAI API Key，也可以直接演示。系统在检索命中后会使用 Top-3 课程片段生成抽取式回答，并提示“当前使用演示模式，未调用大模型”。
+
 ## 运行命令
 
 ```bash
@@ -85,8 +110,8 @@ streamlit run app.py
 ## 演示流程
 
 1. 打开应用后，先看左侧侧边栏。
-2. 在“教师端”上传 PDF 或 TXT 课程资料。
-3. 填写 OpenAI API Key，确认模型名称。
+2. 在“教师端”上传 PDF 或 TXT 课程资料。可直接使用 `assets/demo_data/智慧教育示例资料.txt` 快速演示。
+3. 填写 OpenAI API Key，确认模型名称。如果没有 API Key，可以跳过，系统会进入演示模式。
 4. 点击“构建知识库”，等待系统完成解析、分块、向量化和 FAISS 索引构建。
 5. 构建完成后，知识库会自动保存到 `data/vector_store/`。
 6. 重启应用后，可点击“加载已有知识库”恢复已保存的知识库。
@@ -95,6 +120,26 @@ streamlit run app.py
 9. 查看回答内容、参考资料来源和参考资料片段。
 10. 点击“教师端”的“问答记录”，查看历史问题、回答摘要、来源和时间。
 11. 点击“教师端”的“学情分析”，查看总提问数、未命中问题、低相似度问题、最近 7 天趋势、高频疑难关键词和薄弱知识点总结。
+
+## 演示问题样例
+
+- 什么是智慧教育？
+- RAG 的完整流程是什么？
+- 向量数据库在课程问答中有什么作用？
+- 学情分析对教师有什么帮助？
+- 为什么课程助教需要展示参考片段来源？
+
+## 常用检查命令
+
+```bash
+python -m py_compile app.py src/*.py
+```
+
+如果使用虚拟环境中的 Python，也可以执行：
+
+```bash
+.venv/bin/python -m py_compile app.py src/*.py
+```
 
 ## 项目结构
 
@@ -115,6 +160,9 @@ edu-rag/
 │   └── vector_store/
 │       ├── index.faiss
 │       └── chunks.pkl
+├── assets/
+│   └── demo_data/
+│       └── 智慧教育示例资料.txt
 ├── requirements.txt
 ├── README.md
 └── .gitignore
@@ -148,7 +196,11 @@ edu-rag/
 
 ### OpenAI API Key 放在哪里？
 
-可以设置 `OPENAI_API_KEY` 环境变量，也可以在应用左侧教师端输入。没有 API Key 时，系统无法生成回答。
+可以设置 `OPENAI_API_KEY` 环境变量，也可以在应用左侧教师端输入。没有 API Key 时，系统会使用演示模式，根据检索到的课程片段生成抽取式回答。
+
+### OpenAI 调用失败怎么办？
+
+如果 API Key 错误、网络异常或模型名错误，页面会显示友好提示，并自动回退到演示模式回答，不会导致 Streamlit 页面崩溃。
 
 ### 问答记录保存在哪里？
 
