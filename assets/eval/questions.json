@@ -1,0 +1,22 @@
+[
+  {"question": "什么是智慧教育？", "expected_keyword": ["智慧教育", "人工智能", "数据"]},
+  {"question": "智慧教育为什么强调以学生为中心？", "expected_keyword": ["学生", "个性化", "学习"]},
+  {"question": "RAG 系统的基本流程是什么？", "expected_keyword": ["RAG", "检索", "生成"]},
+  {"question": "课程资料上传后系统会做什么？", "expected_keyword": ["解析", "分块", "向量"]},
+  {"question": "向量数据库在课程知识库中有什么作用？", "expected_keyword": ["向量数据库", "语义", "检索"]},
+  {"question": "FAISS 适合用来做什么？", "expected_keyword": ["FAISS", "向量", "检索"]},
+  {"question": "学生提问后如何找到相关课程片段？", "expected_keyword": ["问题", "向量", "相近"]},
+  {"question": "为什么课程问答需要答案来源追溯？", "expected_keyword": ["来源", "可信度", "资料"]},
+  {"question": "来源追溯对教师有什么价值？", "expected_keyword": ["教师", "检查", "依据"]},
+  {"question": "学情分析如何帮助教师改进教学？", "expected_keyword": ["学情分析", "教师", "调整"]},
+  {"question": "哪些问题可以反映学生学习困难？", "expected_keyword": ["频繁", "未命中", "相似度"]},
+  {"question": "什么是知识缺口？", "expected_keyword": ["知识缺口", "覆盖", "内容"]},
+  {"question": "如何识别课程知识库中的知识缺口？", "expected_keyword": ["未命中", "低相似度", "关键词"]},
+  {"question": "教师反馈如何驱动知识库迭代？", "expected_keyword": ["教师", "补充", "资料"]},
+  {"question": "课程知识库为什么需要持续更新？", "expected_keyword": ["持续", "更新", "教学"]},
+  {"question": "知识库版本记录包含哪些信息？", "expected_keyword": ["版本", "构建时间", "文档"]},
+  {"question": "课程问答覆盖率表示什么？", "expected_keyword": ["覆盖率", "支撑", "比例"]},
+  {"question": "覆盖率较低时教师应该怎么做？", "expected_keyword": ["补充", "资料", "知识缺口"]},
+  {"question": "抽取式演示回答依据什么生成？", "expected_keyword": ["检索", "片段", "资料"]},
+  {"question": "课程助教如何避免无依据扩展？", "expected_keyword": ["严格", "依据", "来源"]}
+]

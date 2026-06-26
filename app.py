@@ -9,7 +9,10 @@ from src.analytics import plot_recent_trend, summarize_weak_points
 from src.config import DEFAULT_OPENAI_MODEL, SIMILARITY_THRESHOLD, TOP_K
 from src.database import get_qa_logs, init_db, save_qa_log
 from src.document_loader import load_documents
-from src.rag_chain import format_openai_error, format_sources, generate_answer, generate_demo_answer
+from src.evaluation import compute_coverage_metrics
+from src.gap_analysis import get_knowledge_gaps, split_gap_rows, summarize_gap_keywords
+from src.kb_version import load_kb_versions, next_version_name, record_kb_version
+from src.rag_chain import format_sources, generate_answer, generate_demo_answer
 from src.splitter import split_documents
 from src.ui import apply_theme, question_input, render_citations, render_hero, status_message
 from src.vector_store import build_vector_store, load_vector_store, retrieve_top_k
@@ -41,6 +44,12 @@ def build_knowledge_base(uploaded_files: list) -> None:
             st.success("知识库已保存到 data/vector_store/。")
         else:
             st.warning("知识库已构建，但保存到本地失败。")
+        record_kb_version(
+            next_version_name(),
+            document_count=len(uploaded_files),
+            chunk_count=len(chunks),
+            note="教师上传课程资料后构建知识库",
+        )
         st.success(f"知识库构建完成，共 {len(chunks)} 个文本片段。")
 
 
@@ -83,6 +92,10 @@ def render_teacher_sidebar() -> tuple[str, str]:
             st.session_state.page = "问答记录"
         if st.button("学情分析", use_container_width=True):
             st.session_state.page = "学情分析"
+        if st.button("知识缺口", use_container_width=True):
+            st.session_state.page = "知识缺口"
+        if st.button("知识库版本", use_container_width=True):
+            st.session_state.page = "知识库版本"
 
         st.divider()
         st.header("学生端 · 课程助教")
@@ -131,11 +144,9 @@ def render_qa_page(api_key: str, model_name: str) -> None:
             answer = generate_demo_answer(clean_question, contexts)
             demo_mode = True
         else:
-            try:
-                answer = generate_answer(api_key, model_name, clean_question, contexts)
-            except Exception as error:
+            answer, api_error = generate_answer(api_key, model_name, clean_question, contexts)
+            if api_error:
                 answer = generate_demo_answer(clean_question, contexts)
-                api_error = format_openai_error(error)
                 demo_mode = True
 
     sources = format_sources(contexts)
@@ -175,10 +186,14 @@ def render_learning_analytics_page() -> None:
     logs = get_qa_logs()
     unanswered = get_unanswered_logs(logs)
     low_similarity = get_low_similarity_logs(logs, SIMILARITY_THRESHOLD)
-    col1, col2, col3 = st.columns(3)
+    metrics = compute_coverage_metrics(logs)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("总提问数", len(logs))
-    col2.metric("未命中问题", len(unanswered))
-    col3.metric("低相似度问题", len(low_similarity))
+    col2.metric("已回答", metrics["answered"])
+    col3.metric("未命中", metrics["unanswered"])
+    col4.metric("覆盖率", f"{metrics['coverage_rate']:.0%}")
+    col5.metric("平均相似度", f"{metrics['avg_top_score']:.3f}")
+    st.caption("课程问答覆盖率反映当前知识库对学生问题的支撑程度。覆盖率较低时，教师可以根据知识缺口页面补充课程资料。")
 
     if not logs:
         st.info("暂无历史提问。学生使用课程助教后，这里会生成智慧教学分析。")
@@ -230,6 +245,37 @@ def render_learning_analytics_page() -> None:
     st.dataframe(build_recent_rows(logs), use_container_width=True, hide_index=True)
 
 
+def render_gap_page() -> None:
+    render_hero("知识缺口识别", "识别课程知识库中覆盖不足的内容，支持教师补充资料并迭代更新。", ["未命中问题", "低相似度问题", "教师反馈闭环"])
+    logs = get_qa_logs()
+    gaps = get_knowledge_gaps(logs, SIMILARITY_THRESHOLD)
+    unanswered, low_similarity = split_gap_rows(gaps)
+    st.metric("知识缺口总数", len(gaps))
+    st.info("以下问题反映了当前课程知识库中可能覆盖不足的内容。教师可以根据这些问题补充课程资料，并重新构建知识库，以提升后续问答覆盖率。")
+    if not gaps:
+        st.success("当前暂未识别到明显知识缺口。")
+        return
+    st.subheader("未命中问题列表")
+    st.dataframe(unanswered, use_container_width=True, hide_index=True)
+    st.subheader("低相似度问题列表")
+    st.dataframe(low_similarity, use_container_width=True, hide_index=True)
+    st.subheader("高频疑难关键词")
+    st.dataframe(
+        [{"关键词": word, "次数": count} for word, count in summarize_gap_keywords(gaps)],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def render_versions_page() -> None:
+    render_hero("知识库版本管理", "记录教师补充资料和重新构建知识库的过程，体现课程知识库迭代闭环。", ["版本记录", "构建时间", "资料迭代"])
+    versions = load_kb_versions()
+    if not versions:
+        st.info("暂无知识库版本记录。构建知识库后会自动生成版本记录。")
+        return
+    st.dataframe(versions[::-1], use_container_width=True, hide_index=True)
+
+
 def main() -> None:
     st.set_page_config(page_title="课程知识库问答系统", page_icon="📚", layout="wide")
     apply_theme()
@@ -240,10 +286,14 @@ def main() -> None:
 
     if st.session_state.page == "课程问答":
         render_qa_page(api_key, model_name)
-    elif st.session_state.page == "问答记录":
-        render_logs_page()
-    else:
+    elif st.session_state.page == "学情分析":
         render_learning_analytics_page()
+    elif st.session_state.page == "知识缺口":
+        render_gap_page()
+    elif st.session_state.page == "知识库版本":
+        render_versions_page()
+    else:
+        render_logs_page()
 
 
 if __name__ == "__main__":

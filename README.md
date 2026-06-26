@@ -1,144 +1,60 @@
-# edu-rag
+# EduRAG：面向智慧教育的可追溯课程知识库问答与学习困难诊断系统
 
 ## 项目简介
 
-`edu-rag` 是一个基于 Streamlit 的智慧课程助教问答系统，适合用于课程资料问答和智慧教育演示。教师上传 PDF/TXT 课程资料后，系统会解析文本、切分片段、生成向量并建立 FAISS 检索索引。学生输入问题后，系统检索最相关的课程片段，拼接为 prompt，并调用 OpenAI API 生成回答，同时显示参考资料来源。
+EduRAG 是一个基于 Streamlit、FAISS 和 RAG 的智慧教育系统演示项目。系统支持教师上传课程资料，自动构建课程知识库；学生可以围绕课程内容进行自然语言提问；系统返回可追溯来源的课程助教回答，并将问答日志沉淀为学情分析、知识缺口识别和知识库迭代依据。
 
-项目还内置 SQLite 问答日志和教师端学情分析，方便查看学生提问记录、未命中问题、低相似度问题、高频疑难关键词和学生可能薄弱知识点。
+英文题目：
 
-## 功能说明
+EduRAG: A Traceable Course Knowledge Base Question Answering and Learning Difficulty Diagnosis System for Smart Education
 
-- 教师端
-  - 上传 PDF 和 TXT 课程资料
-  - 使用 PyMuPDF 解析 PDF，读取 TXT 文本
-  - 使用 LangChain `RecursiveCharacterTextSplitter` 分块
-  - 使用 `sentence-transformers/all-MiniLM-L6-v2` 生成文本向量
-  - 使用 FAISS 构建课程知识库
-  - 查看 SQLite 问答记录
-  - 查看智慧教学学情分析，包括总提问数、未命中问题、低相似度问题、最近 7 天提问趋势、高频疑难关键词和薄弱知识点总结
+## 系统特色
 
-- 学生端
-  - 输入课程相关问题
-  - 检索 Top-3 相关课程片段
-  - 有 OpenAI API Key 时调用大模型生成回答
-  - 无 API Key 时自动进入演示模式，根据 Top-3 片段生成抽取式回答
-  - OpenAI API 调用失败时展示友好提示，并回退到演示模式回答
-  - 当最高检索相似度低于 `0.35` 时，提示“课程资料中暂未找到相关内容”
-  - 显示回答内容、参考资料来源和参考资料片段
-  - 知识库为空时显示清晰提示
+- 可追溯课程问答：回答展示参考来源、页码、片段和相似度。
+- 演示稳定：无 OpenAI API Key 或 API 调用失败时，自动使用抽取式演示模式。
+- 学习困难诊断：基于未命中问题、低相似度问题和疑难关键词分析学生薄弱点。
+- 知识缺口识别：发现课程资料覆盖不足的问题，支持教师补充资料。
+- 知识库迭代：记录每次知识库构建版本，体现教师反馈驱动的更新闭环。
+- 小规模评估：提供检索问题集和 Top-3 命中率评估脚本。
 
-- 智慧教育日志
-  - `is_answered`：是否根据课程资料成功回答
-  - `top_score`：最高检索相似度
-  - `course_sources`：引用的课程资料来源
-  - 教师可根据未命中和低相似度问题补充资料、调整教学重点
+## 功能模块
 
-- 知识库持久化
-  - 构建知识库后自动保存 FAISS 索引
-  - 索引文件保存到 `data/vector_store/index.faiss`
-  - 文本片段、来源文件名、页码等元数据保存到 `data/vector_store/chunks.pkl`
-  - 应用启动后可点击“加载已有知识库”直接恢复使用
+- 教师端资料管理：上传 PDF/TXT 课程资料，构建并持久化 FAISS 知识库。
+- 学生端课程问答：输入问题，检索 Top-3 课程片段，生成回答或演示模式回答。
+- 来源追溯：显示来源文件、页码、片段内容和检索相似度。
+- 问答日志：SQLite 保存问题、回答、来源、最高相似度和是否命中。
+- 学情分析：展示趋势、覆盖率、平均相似度、高频关键词和低相似度问题。
+- 知识缺口：识别未命中问题、低相似度问题和高频疑难关键词。
+- 版本管理：记录知识库版本、构建时间、文档数量和 chunk 数量。
+- 检索评估：使用测试问题集计算 Top-3 命中率和平均最高相似度。
 
-## 环境依赖
-
-建议使用 Python 3.10 或更高版本。
-
-主要依赖：
-
-- Streamlit
-- PyMuPDF
-- LangChain
-- sentence-transformers
-- FAISS
-- OpenAI Python SDK
-- SQLite
-- jieba
-- matplotlib
-
-完整依赖见 [requirements.txt](requirements.txt)。
-
-## 系统架构
+## 技术架构
 
 ```mermaid
 flowchart LR
-    A[教师上传 PDF/TXT] --> B[文档解析]
-    B --> C[文本分块]
-    C --> D[Sentence-Transformers 向量化]
-    D --> E[FAISS 知识库]
-    E --> F[Top-3 检索]
-    G[学生问题] --> F
-    F --> H{是否命中阈值}
-    H -->|低于阈值| I[提示课程资料暂未找到相关内容]
-    H -->|命中| J{是否有 API Key}
-    J -->|有| K[OpenAI 生成回答]
-    J -->|无或调用失败| L[演示模式抽取式回答]
-    K --> M[回答与参考来源]
-    L --> M
-    M --> N[SQLite 问答日志]
-    N --> O[教师端学情分析]
+    A[教师上传课程资料] --> B[文档解析]
+    B --> C[文本切分]
+    C --> D[Embedding 向量化]
+    D --> E[FAISS 课程知识库]
+    F[学生提问] --> G[语义检索 Top-K]
+    E --> G
+    G --> H[构造 RAG Prompt]
+    H --> I[大模型生成 / 演示模式回答]
+    I --> J[答案与来源追溯]
+    J --> K[SQLite 问答日志]
+    K --> L[学情分析]
+    L --> M[知识缺口识别]
+    M --> N[教师补充资料]
+    N --> O[知识库版本更新]
+    O --> D
 ```
 
-## 安装步骤
+## 数据管理闭环
 
-```bash
-cd edu-rag
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-配置 OpenAI API Key，可任选一种方式。
-
-方式一：设置环境变量。
-
-```bash
-export OPENAI_API_KEY="你的 OpenAI API Key"
-```
-
-方式二：启动应用后，在左侧教师端输入 API Key。
-
-如果没有 OpenAI API Key，也可以直接演示。系统在检索命中后会使用 Top-3 课程片段生成抽取式回答，并提示“当前使用演示模式，未调用大模型”。
-
-## 运行命令
-
-```bash
-streamlit run app.py
-```
-
-启动后，浏览器打开 Streamlit 提供的本地地址。
-
-## 演示流程
-
-1. 打开应用后，先看左侧侧边栏。
-2. 在“教师端”上传 PDF 或 TXT 课程资料。可直接使用 `assets/demo_data/智慧教育示例资料.txt` 快速演示。
-3. 填写 OpenAI API Key，确认模型名称。如果没有 API Key，可以跳过，系统会进入演示模式。
-4. 点击“构建知识库”，等待系统完成解析、分块、向量化和 FAISS 索引构建。
-5. 构建完成后，知识库会自动保存到 `data/vector_store/`。
-6. 重启应用后，可点击“加载已有知识库”恢复已保存的知识库。
-7. 点击“学生端”的“课程问答”。
-8. 输入一个课程相关问题并提交。
-9. 查看回答内容、参考资料来源和参考资料片段。
-10. 点击“教师端”的“问答记录”，查看历史问题、回答摘要、来源和时间。
-11. 点击“教师端”的“学情分析”，查看总提问数、未命中问题、低相似度问题、最近 7 天趋势、高频疑难关键词和薄弱知识点总结。
-
-## 演示问题样例
-
-- 什么是智慧教育？
-- RAG 的完整流程是什么？
-- 向量数据库在课程问答中有什么作用？
-- 学情分析对教师有什么帮助？
-- 为什么课程助教需要展示参考片段来源？
-
-## 常用检查命令
-
-```bash
-python -m py_compile app.py src/*.py
-```
-
-如果使用虚拟环境中的 Python，也可以执行：
-
-```bash
-.venv/bin/python -m py_compile app.py src/*.py
+```text
+课程资料上传 -> 课程知识库构建 -> 学生课程问答 -> 答案来源追溯
+-> 问答日志记录 -> 学习困难分析 -> 知识缺口识别
+-> 教师补充资料 -> 知识库版本更新 -> 问答覆盖率提升
 ```
 
 ## 项目结构
@@ -146,74 +62,162 @@ python -m py_compile app.py src/*.py
 ```text
 edu-rag/
 ├── app.py
-├── src/
-│   ├── __init__.py
-│   ├── analytics.py
-│   ├── config.py
-│   ├── database.py
-│   ├── document_loader.py
-│   ├── embeddings.py
-│   ├── rag_chain.py
-│   ├── splitter.py
-│   └── vector_store.py
-├── data/
-│   └── vector_store/
-│       ├── index.faiss
-│       └── chunks.pkl
-├── assets/
-│   └── demo_data/
-│       └── 智慧教育示例资料.txt
-├── requirements.txt
 ├── README.md
-└── .gitignore
+├── requirements.txt
+├── .gitignore
+├── assets/
+│   ├── demo_data/
+│   │   └── 智慧教育示例资料.txt
+│   └── eval/
+│       └── questions.json
+├── data/
+│   ├── uploads/
+│   └── vector_store/
+│       └── .gitkeep
+├── scripts/
+│   └── evaluate_retrieval.py
+└── src/
+    ├── __init__.py
+    ├── analytics.py
+    ├── config.py
+    ├── database.py
+    ├── document_loader.py
+    ├── embeddings.py
+    ├── evaluation.py
+    ├── gap_analysis.py
+    ├── kb_version.py
+    ├── rag_chain.py
+    ├── splitter.py
+    ├── ui.py
+    └── vector_store.py
 ```
 
-模块职责：
+## 安装与运行
 
-- `app.py`：Streamlit 页面和用户交互
-- `src/document_loader.py`：PDF/TXT 文档解析
-- `src/splitter.py`：文本切分
-- `src/embeddings.py`：加载 sentence-transformers 模型并生成向量
-- `src/vector_store.py`：FAISS 索引构建、检索、保存和加载
-- `src/rag_chain.py`：构建 prompt 和调用 OpenAI API
-- `src/database.py`：SQLite 问答日志
-- `src/analytics.py`：最近 7 天趋势、关键词统计、疑难问题和薄弱知识点分析
-- `src/config.py`：模型名、Top-K、路径等配置
+建议使用 Python 3.10 到 3.12。
+
+```bash
+cd edu-rag
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+打开 Streamlit 显示的本地地址，通常为：
+
+```text
+http://localhost:8501
+```
+
+## OpenAI API Key 配置
+
+方式一：环境变量。
+
+```bash
+export OPENAI_API_KEY="你的 OpenAI API Key"
+```
+
+方式二：在应用左侧“教师端 · 智慧教学”输入 API Key。
+
+API Key 不会写入代码，也不会提交到 Git。
+
+## 无 API Key 演示模式
+
+没有 OpenAI API Key 时，系统仍然可以完整演示。只要检索命中课程资料，系统会根据 Top-3 检索片段生成抽取式回答，并提示“当前使用演示模式，未调用大模型”。OpenAI API Key 错误、网络失败、额度不足或模型名错误时，也会自动回退到演示模式，页面不会崩溃。
+
+## 快速演示
+
+可以使用内置示例资料快速体验：
+
+```text
+assets/demo_data/智慧教育示例资料.txt
+```
+
+演示流程：
+
+1. 启动应用。
+2. 在教师端上传 `assets/demo_data/智慧教育示例资料.txt`。
+3. 点击“构建知识库”。
+4. 进入学生端“课程问答”。
+5. 输入示例问题并提交。
+6. 查看回答、参考来源、问答记录、学情分析、知识缺口和知识库版本。
+
+## 示例问题
+
+1. 什么是智慧教育？
+2. RAG 系统的基本流程是什么？
+3. 向量数据库在课程知识库中有什么作用？
+4. 为什么课程问答需要答案来源追溯？
+5. 学情分析如何帮助教师改进教学？
+6. 什么是知识缺口？
+7. 课程问答覆盖率表示什么？
+
+## 检索评估
+
+项目提供了 20 条评估问题：
+
+```text
+assets/eval/questions.json
+```
+
+构建知识库后运行：
+
+```bash
+python scripts/evaluate_retrieval.py
+```
+
+输出示例：
+
+```text
+问题总数: 20
+Top-3 命中数: 18
+Top-3 命中率: 90.00%
+平均最高相似度: 0.612
+```
+
+如果还没有构建知识库，脚本会提示先运行系统并使用示例资料构建知识库。
+
+## 常用检查命令
+
+```bash
+python -m py_compile app.py src/*.py
+pip install -r requirements.txt
+streamlit run app.py
+python scripts/evaluate_retrieval.py
+```
+
+使用虚拟环境时也可以执行：
+
+```bash
+.venv/bin/python -m py_compile app.py src/*.py scripts/evaluate_retrieval.py
+```
+
+## 论文贡献点
+
+1. 设计并实现了面向课程资料的可追溯 RAG 问答框架。
+2. 构建了基于问答日志的学习困难与知识缺口诊断机制。
+3. 实现了教师反馈驱动的课程知识库迭代更新闭环。
+4. 提供了课程问答覆盖率和检索命中率等评估指标。
 
 ## 常见问题
 
 ### 知识库为空怎么办？
 
-请先在左侧“教师端”上传 PDF/TXT 文件，并点击“构建知识库”。如果已经构建过知识库，也可以点击“加载已有知识库”。如果文件没有可解析文本，系统会提示没有解析出可用文本。
+请先在教师端上传 PDF/TXT 文件并点击“构建知识库”。如果已经构建过知识库，可以点击“加载已有知识库”。
 
-### 点击“加载已有知识库”提示未发现文件怎么办？
+### 为什么首次运行较慢？
 
-说明 `data/vector_store/index.faiss` 或 `data/vector_store/chunks.pkl` 不存在。请先上传课程资料并点击“构建知识库”，系统会在构建完成后自动保存这两个文件。
-
-### 为什么首次运行很慢？
-
-首次运行会下载 `sentence-transformers/all-MiniLM-L6-v2` 模型，下载完成后后续启动会更快。
-
-### OpenAI API Key 放在哪里？
-
-可以设置 `OPENAI_API_KEY` 环境变量，也可以在应用左侧教师端输入。没有 API Key 时，系统会使用演示模式，根据检索到的课程片段生成抽取式回答。
-
-### OpenAI 调用失败怎么办？
-
-如果 API Key 错误、网络异常或模型名错误，页面会显示友好提示，并自动回退到演示模式回答，不会导致 Streamlit 页面崩溃。
+首次运行会下载 `sentence-transformers/all-MiniLM-L6-v2` 模型，下载完成后会更快。
 
 ### 问答记录保存在哪里？
 
-问答记录保存在项目根目录下的 `qa_logs.db`。应用启动时会自动创建数据库和 `qa_logs` 表，数据库不存在时不会报错。
+问答记录保存在项目根目录下的 `qa_logs.db`。该文件为运行生成文件，不建议提交到 Git。
 
-### 什么情况下会提示课程资料依据不足？
+### 知识库文件保存在哪里？
 
-系统会计算 Top-3 检索片段的最高相似度。默认阈值为 `0.35`，如果最高相似度低于该阈值，课程助教不会直接生成扩展回答，而是提示“课程资料中暂未找到相关内容”，并将问题记录为未命中，供教师在学情分析中查看。
+FAISS 索引保存到 `data/vector_store/index.faiss`，文本片段元数据保存到 `data/vector_store/chunks.pkl`。这些文件由系统运行生成，不提交到 Git。
 
-### 刷新页面后知识库还在吗？
+### 什么是课程问答覆盖率？
 
-构建后的 FAISS 知识库会保存到 `data/vector_store/`。刷新页面或重启应用后，点击“加载已有知识库”即可继续使用。SQLite 问答日志也会保留。
-
-### 学情分析没有数据怎么办？
-
-学情分析读取 SQLite 中的历史提问。请先完成至少一次课程问答，生成回答后系统会自动保存日志。未命中问题和低相似度问题越多，越说明相关课程资料可能需要补充，或学生对这些知识点存在理解困难。
+覆盖率 = 已回答问题数 / 总问题数。覆盖率较低时，说明课程资料对学生问题的支撑不足，可以通过“知识缺口”页面补充资料并重新构建知识库。

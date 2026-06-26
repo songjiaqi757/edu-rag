@@ -2,7 +2,11 @@
 __pycache__/
 *.pyc
 .DS_Store
+.env
 .streamlit/secrets.toml
 qa_logs.db
+data/uploads/*
+!data/uploads/.gitkeep
 data/vector_store/index.faiss
 data/vector_store/chunks.pkl
+data/vector_store/versions.json

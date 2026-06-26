@@ -6,6 +6,8 @@ DB_PATH = BASE_DIR / "qa_logs.db"
 VECTOR_STORE_DIR = BASE_DIR / "data" / "vector_store"
 VECTOR_INDEX_PATH = VECTOR_STORE_DIR / "index.faiss"
 VECTOR_METADATA_PATH = VECTOR_STORE_DIR / "chunks.pkl"
+KB_VERSION_PATH = VECTOR_STORE_DIR / "versions.json"
+EVAL_QUESTIONS_PATH = BASE_DIR / "assets" / "eval" / "questions.json"
 
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
@@ -41,4 +43,9 @@ STOPWORDS = {
     "有",
     "及",
     "或",
+    "课程",
+    "资料",
+    "问题",
+    "学生",
+    "教师",
 }
